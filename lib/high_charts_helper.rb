@@ -33,9 +33,89 @@ module HighChartsHelper
       });
       </script>
     EOJS
-    
-    return graph 
+    if defined?(raw)
+      return raw(graph) 
+    else
+      return graph
+    end
   end
   
+  def time_series_chart(placeholder, object, &block)
+    object.html_options.merge!({:id=>placeholder})
+    object.options[:chart][:renderTo] = placeholder
+    time_series_graph(placeholder,object, &block).concat(content_tag("div","", object.html_options))
+  end
+
+  def time_series_graph(placeholder, object, &block)
+    logger.info("object data is #{object.data.inspect}")
+    graph = javascript_tag <<-EOJS
+    
+    jQuery(function() {
+      
+      // 1. Define JSON options
+      var time_options = {
+            chart: #{object.options[:chart].to_json},
+            title: #{object.options[:title].to_json},
+            subtitle: {
+                text: document.ontouchstart === undefined ?
+                   'Click and drag in the plot area to zoom in' :
+                   'Drag your finger over the plot to zoom in'
+             },
+             xAxis: {
+                type: 'datetime',
+             },
+             yAxis: {
+                title: {
+                   text: '#{object.options[:yaxis][:title]}'
+                },
+                min: 0.6,
+                startOnTick: false,
+                showFirstLabel: false
+             },
+             tooltip: {
+                      formatter: function() {
+                         return '' +
+                            Highcharts.dateFormat('%A %B %e %Y', this.x) + ': ' +
+                            ' ' + Highcharts.numberFormat(this.y, 2) + ' #{object.options[:yaxis][:title]}';
+                      }
+            },
+             legend: {
+                enabled: true
+             },
+             plotOptions: {
+               spline: {
+                          lineWidth: 4,
+                          states: {
+                             hover: {
+                                lineWidth: 5
+                             }
+                          },
+                          marker: {
+                             enabled: false,
+                             states: {
+                                hover: {
+                                   enabled: true,
+                                   symbol: 'circle',
+                                   radius: 5,
+                                   lineWidth: 1
+                                }
+                             }   
+                          },
+                          pointInterval: 3600000, // one hour
+                          pointStart: #{object.options[:plotOptions][:pointStart]}
+                       }
+              },
+             series: #{object.data.to_json},
+          };
+
+          // 2. Add callbacks (non-JSON compliant)
+           #{capture(&block) if block_given?}
+          // 3. Build the chart
+          var time_chart = new Highcharts.Chart(time_options);
+      });    
+
+    EOJS
+  end
+
 end
 

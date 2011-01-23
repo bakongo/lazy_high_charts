@@ -15,15 +15,15 @@ module HighChartsHelper
           // 1. Define JSON options
           var options = {
                         chart: #{object.options[:chart].to_json},
-                                title: #{object.options[:title].to_json},
-                                legend: #{object.options[:legend].to_json},
-                                xAxis: #{object.options[:x_axis].to_json},
-                                yAxis: #{object.options[:y_axis].to_json},
+                        title: #{object.options[:title].to_json},
+                        legend: #{object.options[:legend].to_json},
+                        xAxis: #{object.options[:x_axis].to_json},
+                        yAxis: #{object.options[:y_axis].to_json},
                         tooltip:  #{object.options[:tooltip].to_json},
-                                credits: #{object.options[:credits].to_json},
-                                plotOptions: #{object.options[:plot_options].to_json},
-                                series: #{object.data.to_json},
-                                subtitle: #{object.options[:subtitle].to_json}
+                        credits: #{object.options[:credits].to_json},
+                        plotOptions: #{object.options[:plot_options].to_json},
+                        series: #{do_series_data(object.data)},
+                        subtitle: #{object.options[:subtitle].to_json}
                         };
 
           // 2. Add callbacks (non-JSON compliant)
@@ -38,6 +38,27 @@ module HighChartsHelper
     else
       return graph
     end
+  end
+  
+  def do_series_data(data)
+    out_str = "[ "
+    series_strings = []
+    data.each do |single_serie|
+      values = []
+      series_string = "{"
+      single_serie.each do |key, val|
+        if key == :pointStart || key == "pointStart"
+          values << "#{key.to_json}: #{val}"
+        else
+          values << "#{key.to_json}: #{val.to_json}"
+        end
+      end
+      series_string += values.join(', ')
+      series_string += "}"
+      series_strings << series_string
+    end
+    out_str += series_strings.join(', ')
+    out_str + "]"
   end
   
   def time_series_chart(placeholder, object, &block)
@@ -56,11 +77,6 @@ module HighChartsHelper
       var time_options = {
             chart: #{object.options[:chart].to_json},
             title: #{object.options[:title].to_json},
-            subtitle: {
-                text: document.ontouchstart === undefined ?
-                   'Click and drag in the plot area to zoom in' :
-                   'Drag your finger over the plot to zoom in'
-             },
              xAxis: {
                 type: 'datetime',
              },
@@ -68,9 +84,6 @@ module HighChartsHelper
                 title: {
                    text: '#{object.options[:yaxis][:title]}'
                 },
-                min: 0.6,
-                startOnTick: false,
-                showFirstLabel: false
              },
              tooltip: {
                       formatter: function() {
@@ -79,9 +92,6 @@ module HighChartsHelper
                             ' ' + Highcharts.numberFormat(this.y, 2) + ' #{object.options[:yaxis][:title]}';
                       }
             },
-             legend: {
-                enabled: true
-             },
              plotOptions: {
                spline: {
                           lineWidth: 4,
@@ -101,7 +111,7 @@ module HighChartsHelper
                                 }
                              }   
                           },
-                          pointInterval: 3600000, // one hour
+                          pointInterval: #{object.options[:plotOptions][:pointInterval]},
                           pointStart: #{object.options[:plotOptions][:pointStart]}
                        }
               },
